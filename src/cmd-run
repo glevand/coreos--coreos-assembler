@@ -186,7 +186,17 @@ ign_validate="ignition-validate"
 
 # Emulate the host CPU closely in both features and cores.
 # We don't care about migration for this.
-set -- -machine accel=kvm -cpu host -smp "${VM_NCPUS}" "$@"
+if [ "$(arch)" == "aarch64" ]; then
+    if [ -c /dev/kvm ]; then
+        qemu_machine_args="-machine virt,gic-version=host,accel=kvm -cpu host -m 4096 -smp 2 "
+    else
+        qemu_machine_args="-machine virt,gic-version=3 -cpu cortex-a57 -m 5120 -smp 2 "
+    fi
+else
+  qemu_machine_args="-machine accel=kvm -cpu host -smp ${VM_NCPUS}"
+fi
+
+set -- "${qemu_machine_args}" "$@"
 
 systemd_units=
 append_systemd_unit() {

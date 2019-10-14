@@ -58,7 +58,14 @@ else
     # Enable arch-specific options for qemu
     case "$(arch)" in
         "x86_64")  QEMU_KVM="qemu-system-$(arch) -accel kvm"                          ;;
-        "aarch64") QEMU_KVM="qemu-system-$(arch) -accel kvm -M virt,gic-version=host" ;;
+        "aarch64")
+            if [ -c /dev/kvm ]; then
+                qemu_args="-machine virt,gic-version=host,accel=kvm -cpu host -m 4096 -smp 2 "
+            else
+                qemu_args="-machine virt,gic-version=3 -cpu cortex-a57 -m 5120 -smp 2 "
+            fi
+            QEMU_KVM="qemu-system-$(arch) ${qemu_args} "
+            ;;
         "ppc64le") QEMU_KVM="qemu-system-ppc64 -accel kvm"                            ;;
         "s390x")   QEMU_KVM="qemu-system-$(arch) -accel kvm -M s390-ccw-virtio"       ;;
         *)         fatal "Architecture $(arch) not supported"
@@ -137,18 +144,18 @@ preflight() {
     fi
 
     if ! stat /dev/kvm >/dev/null; then
-        fatal "Unable to find /dev/kvm"
-    fi
-
-    # permissions on /dev/kvm vary by (host) distro.  If it's
-    # not writable, recreate it.
-    if ! [ -w /dev/kvm ]; then
-        if ! has_privileges; then
-            fatal "running unprivileged, and /dev/kvm not writable"
-        else
-            sudo rm -f /dev/kvm
-            sudo mknod /dev/kvm c 10 232
-            sudo setfacl -m u:"$USER":rw /dev/kvm
+        info "Unable to find /dev/kvm"
+    else
+        # permissions on /dev/kvm vary by (host) distro.  If it's
+        # not writable, recreate it.
+        if ! [ -w /dev/kvm ]; then
+            if ! has_privileges; then
+                fatal "running unprivileged, and /dev/kvm not writable"
+            else
+                sudo rm -f /dev/kvm
+                sudo mknod /dev/kvm c 10 232
+                sudo setfacl -m u:"$USER":rw /dev/kvm
+            fi
         fi
     fi
 
