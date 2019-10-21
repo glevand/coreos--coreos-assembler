@@ -84,9 +84,12 @@ docker_tag=${docker_tag:-"quay.io/coreos-assembler/coreos-assembler:latest"}
 
 process_opts "${@}"
 
-docker_args=${docker_args:-"--rm"}
+docker_args=${docker_args:-""}
 user_cmd=${user_cmd:-"shell"}
-COSA_HISTFILE=${COSA_HISTFILE:-"/srv/cosa--bash-history"}
+COSA_HISTFILE=${COSA_HISTFILE:-"/srv/cosa--$(hostname)-bash-history"}
+
+docker_args+=" --entrypoint=/usr/bin/dumb-init"
+user_cmd="-c /usr/bin/coreos-assembler ${user_cmd}"
 
 if [[ ${usage} ]]; then
 	usage
@@ -104,7 +107,7 @@ fi
 #	--uidmap=0:1:1000 \
 #	--uidmap 1001:1001:64536 \
 
-docker run --rm -ti \
+eval docker run --rm -ti \
 	--name cosa \
 	--security-opt label=disable \
 	--privileged \
